@@ -1,13 +1,9 @@
-name: Daily Auto Commit (Midnight Mode)
+name: Daily Auto Commit (dev-heart)
 
 on:
-  push:
-    branches:
-      - main
   schedule:
-    # 17:15 UTC = 00:15 WIB (Dini Hari)
-    # Bot akan jalan 15 menit setelah pergantian hari
-    - cron: '15 17 * * *'
+    # 16:00 UTC = 23:00 WIB
+    - cron: '0 16 * * *'
   workflow_dispatch:
 
 permissions:
@@ -18,29 +14,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Random Consistent Commits
         run: |
           git config --global user.email "raffaeljkt@gmail.com"
           git config --global user.name "fidhera"
           
-          # TARGET: 8 sampai 12 Commit
-          # Rumus: Acak angka 0-4, lalu tambah 8.
+          # TARGET: 8 sampai 12 Commit acak
           COUNT=$((RANDOM % 5 + 8))
           
-          echo "Target hari ini: $COUNT commits (Jalan jam 00:15 WIB)"
+          echo "Target hari ini: $COUNT commits (Jadwal 23:00 WIB / 16:00 UTC)"
           
           for ((i=1; i<=COUNT; i++))
           do
-            echo "Commit ke-$i pada $(date)" >> last_run_log.txt
+            echo "dev-heart beat $i of $COUNT at $(date -u)" >> last_run_log.txt
             git add last_run_log.txt
-            git commit -m "Auto commit batch $i of $COUNT: Midnight Green"
+            git commit -m "Auto commit batch $i of $COUNT: dev-heart pulse"
             
-            # Jeda 2 detik biar timestamp tidak numpuk
+            # Jeda 2 detik agar timestamp rapi
             sleep 2
           done
           
-          # Push sekalian di akhir
-          git push
+          # Rebase sebelum push untuk mencegah error rejected jika ada push bersamaan
+          git pull --rebase origin main
+          git push origin main
