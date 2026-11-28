@@ -2,8 +2,10 @@ name: Daily Auto Commit (dev-heart)
 
 on:
   schedule:
-    # 16:00 UTC = 23:00 WIB
-    - cron: '0 16 * * *'
+    # Menit ganjil (15:37 UTC = 22:37 WIB & 16:23 UTC = 23:23 WIB)
+    # Menghindari penundaan antrean masif GitHub Actions pada menit :00
+    - cron: '37 15 * * *'
+    - cron: '23 16 * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,26 +21,60 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Random Consistent Commits
+      - name: Auto-Commit & Auto-Healing (Asia/Jakarta WIB)
         run: |
           git config --global user.email "raffaeljkt@gmail.com"
           git config --global user.name "fidhera"
           
-          # TARGET: 8 sampai 12 Commit acak
-          COUNT=$((RANDOM % 5 + 8))
+          # Selalu sinkronkan dengan remote branch
+          git pull --rebase origin main
           
-          echo "Target hari ini: $COUNT commits (Jadwal 23:00 WIB / 16:00 UTC)"
+          export TZ='Asia/Jakarta'
+          TODAY=$(date +'%Y-%m-%d')
+          YESTERDAY=$(date -d "yesterday" +'%Y-%m-%d')
           
-          for ((i=1; i<=COUNT; i++))
-          do
-            echo "dev-heart beat $i of $COUNT at $(date -u)" >> last_run_log.txt
-            git add last_run_log.txt
-            git commit -m "Auto commit batch $i of $COUNT: dev-heart pulse"
+          echo "Current WIB Time: $(date)"
+          echo "Target Hari Ini: $TODAY | Kemarin: $YESTERDAY"
+          
+          # 1. AUTO-HEALING: Cek apakah hari kemarin memiliki commit
+          YESTERDAY_COMMITS=$(git log -n 50 --since="$YESTERDAY 00:00:00 +0700" --until="$YESTERDAY 23:59:59 +0700" --oneline | wc -l)
+          if [ "$YESTERDAY_COMMITS" -lt 8 ]; then
+            NEED_YESTERDAY=$(( (RANDOM % 5 + 8) - YESTERDAY_COMMITS ))
+            if [ "$NEED_YESTERDAY" -gt 0 ]; then
+              echo "[AUTO-HEALING] Hari kemarin ($YESTERDAY) kurang commit (ada $YESTERDAY_COMMITS). Menambahkan $NEED_YESTERDAY commit pemulihan..."
+              for ((i=1; i<=NEED_YESTERDAY; i++))
+              do
+                SEC=$(printf "%02d" $((i * 2)))
+                C_DATE="$YESTERDAY 23:00:$SEC +0700"
+                echo "dev-heart healing beat $i of $NEED_YESTERDAY for $YESTERDAY" >> patch.txt
+                git add patch.txt
+                GIT_AUTHOR_DATE="$C_DATE" GIT_COMMITTER_DATE="$C_DATE" git commit --date="$C_DATE" -m "chore(auto-heal): streak recovery $YESTERDAY batch $i of $NEED_YESTERDAY [dev-heart]" --quiet
+              done
+            fi
+          fi
+          
+          # 2. TARGET HARI INI: Cek commit hari ini
+          TODAY_COMMITS=$(git log -n 50 --since="$TODAY 00:00:00 +0700" --until="$TODAY 23:59:59 +0700" --oneline | wc -l)
+          echo "Commit terdaftar untuk hari ini ($TODAY): $TODAY_COMMITS"
+          
+          if [ "$TODAY_COMMITS" -ge 8 ]; then
+            echo "Hari ini sudah memiliki $TODAY_COMMITS commit (target minimal 8 terpenuhi). Tidak perlu commit tambahan."
+          else
+            TARGET_TOTAL=$((RANDOM % 5 + 8))
+            NEED_TODAY=$((TARGET_TOTAL - TODAY_COMMITS))
+            echo "Menambahkan $NEED_TODAY commit untuk memenuhi target hari ini ($TARGET_TOTAL)..."
             
-            # Jeda 2 detik agar timestamp rapi
-            sleep 2
-          done
+            for ((i=1; i<=NEED_TODAY; i++))
+            do
+              SEC=$(printf "%02d" $((i * 3)))
+              C_DATE="$TODAY 23:00:$SEC +0700"
+              echo "dev-heart pulse batch $i of $NEED_TODAY at $C_DATE" >> last_run_log.txt
+              git add last_run_log.txt
+              GIT_AUTHOR_DATE="$C_DATE" GIT_COMMITTER_DATE="$C_DATE" git commit --date="$C_DATE" -m "Auto commit batch $i of $NEED_TODAY: dev-heart pulse" --quiet
+              sleep 1
+            done
+          fi
           
-          # Rebase sebelum push untuk mencegah error rejected jika ada push bersamaan
+          # Rebase sebelum push untuk mencegah konflik
           git pull --rebase origin main
           git push origin main
