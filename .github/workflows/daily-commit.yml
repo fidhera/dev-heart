@@ -36,8 +36,9 @@ jobs:
           echo "Current WIB Time: $(date)"
           echo "Target Hari Ini: $TODAY | Kemarin: $YESTERDAY"
           
-          # 1. AUTO-HEALING: Cek apakah hari kemarin memiliki commit
-          YESTERDAY_COMMITS=$(git log -n 50 --since="$YESTERDAY 00:00:00 +0700" --until="$YESTERDAY 23:59:59 +0700" --oneline | wc -l)
+          # 1. AUTO-HEALING: Cek apakah hari kemarin memiliki commit (berdasarkan Author Date)
+          YESTERDAY_COMMITS=$(git log -n 100 --date=format:"%Y-%m-%d" --format="%ad" | grep -c "^$YESTERDAY" || true)
+          echo "Commit terdaftar untuk kemarin ($YESTERDAY): $YESTERDAY_COMMITS"
           if [ "$YESTERDAY_COMMITS" -lt 8 ]; then
             NEED_YESTERDAY=$(( (RANDOM % 5 + 8) - YESTERDAY_COMMITS ))
             if [ "$NEED_YESTERDAY" -gt 0 ]; then
@@ -53,8 +54,8 @@ jobs:
             fi
           fi
           
-          # 2. TARGET HARI INI: Cek commit hari ini
-          TODAY_COMMITS=$(git log -n 50 --since="$TODAY 00:00:00 +0700" --until="$TODAY 23:59:59 +0700" --oneline | wc -l)
+          # 2. TARGET HARI INI: Cek commit hari ini (berdasarkan Author Date)
+          TODAY_COMMITS=$(git log -n 100 --date=format:"%Y-%m-%d" --format="%ad" | grep -c "^$TODAY" || true)
           echo "Commit terdaftar untuk hari ini ($TODAY): $TODAY_COMMITS"
           
           if [ "$TODAY_COMMITS" -ge 8 ]; then
