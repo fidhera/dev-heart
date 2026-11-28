@@ -100,7 +100,7 @@ try {
         $dateStr = $currentDate.ToString("yyyy-MM-dd")
         # Commit acak 8-12 kali
         $commitCount = Get-Random -Minimum 8 -Maximum 13
-        Write-Host "  -> Tanggal $dateStr: membuat $commitCount commit..." -ForegroundColor Magenta
+        Write-Host "  -> Tanggal ${dateStr}: membuat $commitCount commit..." -ForegroundColor Magenta
 
         for ($i = 1; $i -le $commitCount; $i++) {
             # Format waktu: 23:00 WIB (+0700) dengan detik berurutan
